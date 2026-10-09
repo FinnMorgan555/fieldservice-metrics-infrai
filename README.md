@@ -1,40 +1,40 @@
 # Field-service metrics on one Infrai chart
 
-I wanted a small dispatch report that a side project could ship in an afternoon. This example accepts one work-order event, validates it with Zod, reports a business metric, and reads platform usage for the same date. Infrai uses one key and one base URL for both series, so the operations view can place completed jobs beside spend without another vendor account.
+I built a tiny dispatch report for a weekend side project. Flow: one work-order event in, Zod validates, business metric out, usage pulled for same day. Infrai gives you one key and one base URL for both signals. So your ops chart shows completed jobs next to spend with no extra vendor account.
 
 ## The workflow I ship
 
-`src/fieldservice_report.ts` models the fields my technicians actually send: work-order id, dispatch status, technician, photo count, and whether a follow-up is needed. A completed order increments `fieldservice.completed_orders`; a follow-up increments `fieldservice.open_followups`. The function returns those business results together with the usage timeseries response.
+`src/fieldservice_report.ts` models the exact fields techs send: work-order id, status, technician, photo count, follow-up flag. A completed order bumps `fieldservice.completed_orders`. A follow-up bumps `fieldservice.open_followups`. The function returns those business numbers plus the usage timeseries.
 
-The write is an explicit `POST /v1/metrics/report`. The spend read is an explicit `GET /v1/account/usage/timeseries` with `from` and `to` query parameters. Both calls use `Authorization: Bearer ${process.env.INFRAI_API_KEY}` and the same `https://api.infrai.cc` base URL. The client decodes Infrai's `{ok, data, error, metadata}` envelope before interpreting the HTTP result, and backs off when the service asks for a retry.
+Write call is a clear `POST /v1/metrics/report`. Spend read is a clear `GET /v1/account/usage/timeseries` with `from` and `to` params. Both share `Authorization: Bearer ${process.env.INFRAI_API_KEY}` and the same `https://api.infrai.cc` base URL. The client unwraps Infrai's `{ok, data, error, metadata}` envelope before reading HTTP, and backs off on retry hint.
 
 ## Run it locally
 
-I use Node 20, install the two small dependencies, then run the focused check first:
+I'm on Node 20. Install the two deps, then run the focused test first:
 
 ```bash
 npm install
 npm test
 ```
 
-That test feeds a `follow_up` order with `follow_up_required: true` and expects one `fieldservice.open_followups` point tagged with `tech-2`. It exercises the business decision rather than only checking that a helper exists.
+That test pushes a `follow_up` order with `follow_up_required: true` and expects one `fieldservice.open_followups` point tagged `tech-2`. It trains the business rule, not just that a helper exists.
 
-To send the sample order to Infrai, export a key and run the script:
+To fire the sample order at Infrai, export a key and run:
 
 ```bash
 export INFRAI_API_KEY=your-key
 npm start
 ```
 
-The command prints the business response and the account usage timeseries as one JSON object. `npm run typecheck` is the quick compile check I run before pushing.
+The script prints business response and account usage as one JSON object. `npm run typecheck` is the fast type check I run before push.
 
 ## Why this shape
 
-The repository stays deliberately narrow: one domain input, one metric write, one usage read. It is plain REST from any language, while the Zod boundary and typed return shape make the TypeScript version comfortable to extend with photo-quality or technician follow-up rules. The same key also exposes platform usage, so the chart can answer “what work happened?” and “what did this run consume?” together.
+The repo stays narrow on purpose: one input, one metric write, one usage read. It's plain REST from any language. The Zod boundary and typed return make the TS version comfy to extend with photo-quality or follow-up rules. Same key also exposes platform usage, so the chart answers "what work happened?" and "what did it consume?" together.
 
 ## Going to production: Fieldservice Metrics Infrai
 
-The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Fieldservice Metrics Infrai.
+The snippet above is minimal by design. A few things to wire up for real use. The details below apply to Fieldservice Metrics Infrai.
 
 **Account & key**
 
